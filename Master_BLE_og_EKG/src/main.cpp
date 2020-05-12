@@ -12,12 +12,13 @@ void sampleEKGDataTask(void *pvParamaters);
 //Task der normaliserer og finder peaks
 void processEKGDataTask(void *pvParameters);
 
-void startSampleTask() {
-  	vTaskResume(EKGTaskHandler);
-}
+bool isSamplingRunning = false;
 
-void stopSampleTask() {
-  	vTaskSuspend(EKGTaskHandler);
+void startSampleTask() {
+	if (!isSamplingRunning) {
+		isSamplingRunning = true;
+		vTaskResume(EKGTaskHandler);
+	}
 }
 
 //Buffere som filtreret data lægges i
@@ -63,7 +64,6 @@ void setup() {
   Serial.begin(115200);
   // Funktioner pointers
   startSampleFuncPointer = startSampleTask;
-  stopSampleFuncPointer = stopSampleTask;
 
   /**************************** SD-Kort setup *******************************/
   isCardMounted();
@@ -195,6 +195,12 @@ void sampleEKGDataTask(void *pvParapvParamaters) {
 			vTaskResume(procEKGTaskHandler);
 		} else {
 			dataIndex++; //Optæl dataindex hvis bufferen ikke er fyldt endnu
+		}
+		if (doStopSampling) { // Reset sample task og stop
+			isSamplingRunning = false;
+			dataIndex = 0;
+			Serial.println("Stopping sample task... Done");
+			vTaskSuspend(NULL);
 		}
     	vTaskDelayUntil(&lastWakeTime, frequency); // Vent indtil der skal samples igen
 	}

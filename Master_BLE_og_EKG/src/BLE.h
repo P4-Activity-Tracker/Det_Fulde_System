@@ -4,9 +4,9 @@
 #include <BLEServer.h>
 #include <BLE2902.h>
 
-// Funktions pointers
+// Start/Stop indikator
 void ( *startSampleFuncPointer) ();
-void ( *stopSampleFuncPointer) ();
+bool doStopSampling = false;
 
 
 // UUID'er til BLE
@@ -87,7 +87,7 @@ class APP_MyCallbacks: public BLECharacteristicCallbacks {
 		else if (value.indexOf ("stop") >= 0){
 			pCharacteristic_TX_IMU->setValue("stop"); // send beskeden videre til IMU
 			pCharacteristic_TX_IMU->notify();
-			stopSampleFuncPointer(); // stopper sampling
+			doStopSampling = true; // stopper sampling
 			Serial.println("stop det skidt");
 		}
 		else if (value.length() == 11){		// gem data i de forskellige variabler som integers
