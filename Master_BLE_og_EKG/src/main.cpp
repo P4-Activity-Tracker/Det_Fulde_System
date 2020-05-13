@@ -285,6 +285,7 @@ void processEKGDataTask(void *pvParameters) {
 		appendFile(SD, fileName.c_str(), dataOut2.c_str());
 			Serial.print("Procces gjort");
 		//Suspend task indtil der er ny
+		activity = 7;
 		vTaskSuspend(NULL); // data klar
 	}
 }

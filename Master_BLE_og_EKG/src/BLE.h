@@ -24,7 +24,7 @@ BLECharacteristic *pCharacteristic_TX_IMU;
 BLECharacteristic *pCharacteristic_RX_IMU;
 
 // Variabler som modtages fra APP                                 skal måske op i toppen 
-int activity;
+int activity = 0;
 int32_t peakCount;
 int32_t peakCountTotal = 0;
 
