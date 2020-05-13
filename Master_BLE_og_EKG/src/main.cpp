@@ -17,6 +17,7 @@ bool isSamplingRunning = false;
 void startSampleTask() {
 	if (!isSamplingRunning) {
 		isSamplingRunning = true;
+		digitalWrite(2, HIGH);
 		vTaskResume(EKGTaskHandler);
 	}
 }
@@ -61,6 +62,8 @@ String dataToCharacters(int32_t data, uint8_t characters)
 }
 
 void setup() {
+	digitalWrite(2, LOW);
+	pinMode(2, OUTPUT);
   Serial.begin(115200);
   // Funktioner pointers
   startSampleFuncPointer = startSampleTask;
@@ -198,6 +201,7 @@ void sampleEKGDataTask(void *pvParapvParamaters) {
 		}
 		if (doStopSampling) { // Reset sample task og stop
 			isSamplingRunning = false;
+			digitalWrite(2, LOW);
 			dataIndex = 0;
 			Serial.println("Stopping sample task... Done");
 			vTaskSuspend(NULL);

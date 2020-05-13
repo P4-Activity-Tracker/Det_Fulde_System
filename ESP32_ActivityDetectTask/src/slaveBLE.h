@@ -8,6 +8,8 @@
 #include <BLEUtils.h>
 //#include <BLEServer.h>
 
+BLEClient*  pClient;
+
 //----------------------------------------------
 // BLE variabler
 // Den service vi gerne vil have forbindelse til, fra den trådløse server.
@@ -31,6 +33,7 @@ static BLEAddress masterAddress = MasterMacAddr;
 // Funktions pointers
 void ( *startSampleFuncPointer) ();
 void ( *stopSampleFuncPointer) ();
+
 
 //----------------------------------------------
 // Funktinoer
@@ -71,19 +74,24 @@ static void notifyCallback(
 	Serial.println(incommingBLE);
 }
 
-// laver en connectiong til server
-bool connectToServer() {
-    Serial.print("Forming a connection to ");
+void setupBLE() {
+	Serial.print("Forming a connection to ");
     Serial.println(masterAddress.toString().c_str());
-    BLEClient*  pClient  = BLEDevice::createClient();
+    pClient  = BLEDevice::createClient();
     Serial.println(" - Created client");
     pClient->setClientCallbacks(new MyClientCallback());
+}
+
+// laver en connectiong til server
+bool connectToServer() {
+	Serial.println(" - Attempting connection...");
     // former en trådløs BLE forbindelse til server.
 	bool didConnect = pClient->connect(masterAddress);
     if (!didConnect) {;  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
 		Serial.println("Couldn't connect to server!");
 		return false;
 	}
+	digitalWrite(2, HIGH);
     Serial.println(" - Connected to server");
     // Får en reference til den service vi er efter til den trådløse BLE server.
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);

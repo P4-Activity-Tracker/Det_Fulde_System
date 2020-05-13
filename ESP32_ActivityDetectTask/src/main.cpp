@@ -253,6 +253,8 @@ void setupIMU() {
 // Setup
 //----------------------------------------------
 void setup() {
+	digitalWrite(2, LOW);
+	pinMode(2, OUTPUT);
 	// Start serial kommunikation
 	#ifdef useDebug
 		Serial.begin(115200);
@@ -265,6 +267,7 @@ void setup() {
 		stopSampleFuncPointer = stopSampleTask;
 		// Prøv at forbid til BlE server
 		BLEDevice::init("");
+		setupBLE();
 		// Vent på BLE forbindelse
 		while (!connectToServer()) {
 			delay(5000);
