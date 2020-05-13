@@ -407,7 +407,7 @@ void processActivityDataTask(void *pvParameters) {
 		// Find threshold for accelerometerdata
 		double gyroThreshold = dataMaxGyro * gyroPeakThreshold;
 		// Hvis ingen signifikante udsving, stop
-		if (dataMaxAccl > noActivityThresholdAccl && dataMaxGyro > noActivityThresholdGyro) {
+		//if (dataMaxAccl > noActivityThresholdAccl && dataMaxGyro > noActivityThresholdGyro) {
 			// Beregn FFT af data
 			getAbsoluteSingleFFT(acclStaticData, acclSingleFFT, bufferSize);
 			getAbsoluteSingleFFT(gyroStaticData, gyroSingleFFT, bufferSize);
@@ -436,9 +436,9 @@ void processActivityDataTask(void *pvParameters) {
 			if (activity == BIKE_SLOW || activity == BIKE_FAST || activity == BIKE) {
 				peakCount = 0;
 			}
-		} else {
-			Serial.println("No activity detected.");
-		}
+		//} else {
+		//	Serial.println("No activity detected.");
+		//}
 		#ifndef useArrayData
 			// Her benyttes fuktionen "dataToCharacters" til activity og peakcount, hvor det gemmes i "dataOut" som derefter skrives til med funktionen "writeToServer"
 			String dataOut = dataToCharacters(activity,1) + dataToCharacters(peakCount,2);
