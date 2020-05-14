@@ -8,6 +8,10 @@
 void ( *startSampleFuncPointer) ();
 bool doStopSampling = false;
 
+bool isSamplingRunning = false;
+
+uint32_t lastActivity = 0;
+#define timeoutThreshold 20000
 
 // UUID'er til BLE
 #define APP_SERVICE_UUID "b6785631-99ba-4128-8871-72651d3f1228"
@@ -36,7 +40,10 @@ class IMU_MyCallbacks: public BLECharacteristicCallbacks {
     	activity = value.substring(0,1).toInt();  
 		peakCount = value.substring(1,3).toInt();
 		peakCountTotal = peakCountTotal + peakCount;
+		Serial.print("Fik aktivitet: ");
+		Serial.println(activity);
 
+		lastActivity = millis();
 		// pCharacteristic_TX_APP->setValue(value.c_str());   // send det modtaget data fra IMU til APP'en
 
 
@@ -56,6 +63,11 @@ class myServerCallback: public BLEServerCallbacks{
 	void onConnect(BLEServer* pServer){
 		BLEDevice::startAdvertising();
 		Serial.println("forbundet til klient");
+		if (isSamplingRunning) {
+			pCharacteristic_TX_IMU->setValue("start"); // send beskeden videre til IMU
+		} else {
+			pCharacteristic_TX_IMU->setValue("stop"); 
+		}
 
 	};
 };

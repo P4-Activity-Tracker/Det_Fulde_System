@@ -12,12 +12,13 @@ void sampleEKGDataTask(void *pvParamaters);
 //Task der normaliserer og finder peaks
 void processEKGDataTask(void *pvParameters);
 
-bool isSamplingRunning = false;
+
 
 void startSampleTask() {
 	if (!isSamplingRunning) {
 		isSamplingRunning = true;
 		digitalWrite(2, HIGH);
+		lastActivity = millis();
 		vTaskResume(EKGTaskHandler);
 	}
 }
@@ -77,7 +78,8 @@ void setup() {
 
   Serial.println("Starter BLE Server");
 
-  BLEDevice::init("ESP32_Master");                                     // opret en enhed og giver enheden navnet ESP32_Master
+  BLEDevice::init("ESP32_Master");       
+  BLEDevice::setPower(ESP_PWR_LVL_P9);                              // opret en enhed og giver enheden navnet ESP32_Master
   BLEServer *pServer = BLEDevice::createServer();                      // sætter enheden til at være en server
   pServer->setCallbacks(new myServerCallback());
   BLEService *pService_APP = pServer->createService(APP_SERVICE_UUID); // opret en tjeneste til APP-enhed med egenskaberne
@@ -96,7 +98,8 @@ void setup() {
   pCharacteristic_TX_IMU = pService_IMU->createCharacteristic(
       IMU_TX_CHARACTERISTIC_UUID,
       BLECharacteristic::PROPERTY_READ |
-          BLECharacteristic::PROPERTY_NOTIFY);
+          BLECharacteristic::PROPERTY_NOTIFY |
+		  BLECharacteristic::PROPERTY_INDICATE);
 
   pCharacteristic_RX_IMU = pService_IMU->createCharacteristic(
       IMU_RX_CHARACTERISTIC_UUID,
@@ -115,15 +118,13 @@ void setup() {
   pCharacteristic_TX_IMU->addDescriptor(new BLE2902()); // til IMU
   pService_APP->start();                                // starter tjenesten til APP'en
   pService_IMU->start();                                // starter tjenesten til IMU'en
-  BLEAdvertising *pAdvertising_APP = BLEDevice::getAdvertising();
-  pAdvertising_APP->addServiceUUID(APP_SERVICE_UUID); // anoncer til APP'en
-  pAdvertising_APP->setScanResponse(true);
-  pAdvertising_APP->setMinPreferred(0x06); // funktion som hjælper med iPhone connection problemer
-  pAdvertising_APP->setMinPreferred(0x12); // funktion som hjælper med iPhone connection problemer
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(APP_SERVICE_UUID); // anoncer til APP'en
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06); // funktion som hjælper med iPhone connection problemer
+  pAdvertising->setMinPreferred(0x12); // funktion som hjælper med iPhone connection problemer
 
-  BLEAdvertising *pAdvertising_IMU = BLEDevice::getAdvertising();
-  pAdvertising_IMU->addServiceUUID(IMU_SERVICE_UUID); // anoncer til IMU'en
-  pAdvertising_IMU->setScanResponse(true);
+  pAdvertising->addServiceUUID(IMU_SERVICE_UUID); // anoncer til IMU'en
 
   BLEDevice::startAdvertising(); // start annoncering, så andre BLE-enheder kan scanne og finde denne BLE-enhed
   Serial.println("Characteristic er defineret! Nu kan det ses på  smartphone!");
@@ -273,6 +274,11 @@ void processEKGDataTask(void *pvParameters) {
 
 		// Send data til APP
 		// Akt, BPM, EE, Skridt, Tid(s)
+		if ((millis() - lastActivity) > timeoutThreshold) {
+			activity = 7;
+		}
+		Serial.print("Time since last activity: ");
+		Serial.println(millis() - lastActivity);
 
 		String dataOut = dataToCharacters(activity, 1) + dataToCharacters(BPM, 3) + dataToCharacters(totalEE, 4) + dataToCharacters(peakCountTotal, 5) + dataToCharacters(excerciseTime, 5);
 
@@ -285,7 +291,7 @@ void processEKGDataTask(void *pvParameters) {
 		appendFile(SD, fileName.c_str(), dataOut2.c_str());
 			Serial.print("Procces gjort");
 		//Suspend task indtil der er ny
-		activity = 7;
+		//activity = 7;
 		vTaskSuspend(NULL); // data klar
 	}
 }

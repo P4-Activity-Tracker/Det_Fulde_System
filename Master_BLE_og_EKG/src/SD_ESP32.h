@@ -89,7 +89,7 @@ uint8_t getSessionNumber()
 
 void isCardMounted()
 {
-	if (!SD.begin())
+	if (!SD.begin()isCardMounted)
 	{
 		Serial.println("Card Mount Failed");
 		return;

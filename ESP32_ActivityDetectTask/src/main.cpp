@@ -58,8 +58,8 @@ const uint16_t fftIndexSummed = (((bufferSize / fs) * sumFreq) + 1);
 	#include "debuggerAndTester.h"
 #endif
 
-#define noActivityThresholdAccl 5500
-#define noActivityThresholdGyro 200
+#define noActivityThresholdAccl 100
+#define noActivityThresholdGyro 100
 
 //----------------------------------------------
 // Variable definationer
@@ -104,23 +104,11 @@ arduinoFFT FFT = arduinoFFT(); // FFT klasse
 // Funktionsdefinationer
 
 void startSampleTask () {
-	#ifdef testRunTime
-		if (!runningTest) {
-	#endif
-	vTaskResume(sadTaskHandler);
-	#ifdef testRunTime
-		}
-	#endif
-}
-
-void stopSampleTask () {
-	#ifdef testRunTime
-		if (!runningTest) {
-	#endif
-	vTaskSuspend(sadTaskHandler);
-	#ifdef testRunTime
-		}
-	#endif
+	if (!isSampling) {
+		Serial.println("Starting sampling.");
+		isSampling = true;
+		vTaskResume(sadTaskHandler);
+	}
 }
 
 // Beregn Pythagoras bevægelsesvektor fra x, y og z
@@ -259,27 +247,13 @@ void setup() {
 	#ifdef useDebug
 		Serial.begin(115200);
 	#endif
-	#ifndef useArrayData
-		// Setup IMU
-		setupIMU();
-		// Funktioner pointers
-		startSampleFuncPointer = startSampleTask;
-		stopSampleFuncPointer = stopSampleTask;
-		// Prøv at forbid til BlE server
-		BLEDevice::init("");
-		setupBLE();
-		// Vent på BLE forbindelse
-		while (!connectToServer()) {
-			delay(5000);
-		}  
-	#endif
 	// Lav data behandler task
 	xTaskCreate(
 		sampleActivityDataTask,
 		"Sample activity data",
 		4096, // Hukommelses mængde
 		NULL,
-		19, // Priotitet
+		2, // Priotitet
 		&sadTaskHandler // Håndtag til task
 	);
 	// Lav data behandler task
@@ -288,7 +262,7 @@ void setup() {
 		"Activity data handler",
 		16384,
 		NULL,
-		5, // Priotitet
+		1, // Priotitet
 		&padTaskHandler // Håndtag til task
 	);
 	// Lad begge tasks blive færdig med setup
@@ -296,6 +270,18 @@ void setup() {
 	#ifdef useArrayData
 		vTaskResume(sadTaskHandler); // Start data sampling (til debug)
 	#endif
+	// Setup IMU
+	setupIMU();
+	// Funktioner pointers
+	startSampleFuncPointer = startSampleTask;
+	// Prøv at forbid til BlE server
+	BLEDevice::init("");
+	setupBLE();
+	// Vent på BLE forbindelse
+	while (!connectToServer()) {
+		Serial.println(" - Retrying...");
+		delay(500);
+	}  
 }
 
 //----------------------------------------------
@@ -367,6 +353,13 @@ void sampleActivityDataTask(void *pvParamaters) {
 			// Opsæt data index
 			dataIndex++;
 		}
+		if (doStopSampling) {
+			Serial.println("Stopping sampling.");
+			doStopSampling = false;
+			isSampling = false;
+			dataIndex = 0;
+			vTaskSuspend(NULL);
+		}
 		#ifdef testRunTime
 			sampleStop = micros();
 			sampleAll[sampleIndex] = sampleStop - sampleStart;
@@ -400,14 +393,20 @@ void processActivityDataTask(void *pvParameters) {
 		#endif
 		// Find max i accelerometerdata
 		double dataMaxAccl = maxInArray(acclStaticData, bufferSize);
+		double dataMinAccl = minInArray(acclStaticData, bufferSize);
 		// Find threshold for accelerometerdata
 		double acclThreshold = dataMaxAccl * acclPeakThreshold;
 		// Find max i gyroskop data
 		double dataMaxGyro = maxInArray(gyroStaticData, bufferSize);
+		double dataMinGyro = minInArray(gyroStaticData, bufferSize);
 		// Find threshold for accelerometerdata
 		double gyroThreshold = dataMaxGyro * gyroPeakThreshold;
+
+		Serial.println(dataMaxAccl - dataMinAccl);
+		Serial.println(dataMaxGyro - dataMinGyro);
+
 		// Hvis ingen signifikante udsving, stop
-		//if (dataMaxAccl > noActivityThresholdAccl && dataMaxGyro > noActivityThresholdGyro) {
+		if ((dataMaxAccl - dataMinAccl) > noActivityThresholdAccl && (dataMaxGyro - dataMinGyro) > noActivityThresholdGyro) {
 			// Beregn FFT af data
 			getAbsoluteSingleFFT(acclStaticData, acclSingleFFT, bufferSize);
 			getAbsoluteSingleFFT(gyroStaticData, gyroSingleFFT, bufferSize);
@@ -436,9 +435,9 @@ void processActivityDataTask(void *pvParameters) {
 			if (activity == BIKE_SLOW || activity == BIKE_FAST || activity == BIKE) {
 				peakCount = 0;
 			}
-		//} else {
-		//	Serial.println("No activity detected.");
-		//}
+		} else {
+			Serial.println("No activity detected.");
+		}
 		#ifndef useArrayData
 			// Her benyttes fuktionen "dataToCharacters" til activity og peakcount, hvor det gemmes i "dataOut" som derefter skrives til med funktionen "writeToServer"
 			String dataOut = dataToCharacters(activity,1) + dataToCharacters(peakCount,2);

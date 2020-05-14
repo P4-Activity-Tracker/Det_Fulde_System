@@ -32,7 +32,8 @@ static BLEAddress masterAddress = MasterMacAddr;
 
 // Funktions pointers
 void ( *startSampleFuncPointer) ();
-void ( *stopSampleFuncPointer) ();
+bool doStopSampling = false;
+bool isSampling = false;
 
 
 //----------------------------------------------
@@ -45,7 +46,7 @@ class MyClientCallback : public BLEClientCallbacks {
 
 	void onDisconnect(BLEClient* pclient) {
 		connected = false;
-		stopSampleFuncPointer(); // Stop sampling ved disconnect
+		doStopSampling = true;
 		Serial.println("onDisconnect");
 	}
 };
@@ -67,9 +68,10 @@ static void notifyCallback(
 		incommingBLE = incommingBLE + *((char*)pData + i); 
 	}
 	if (incommingBLE.indexOf ("start") >= 0) { // Finder index til "start" i besked, -1 hvis ikke fundet
+		Serial.println(isSampling);
 		startSampleFuncPointer();
 	}else if (incommingBLE.indexOf ("stop") >= 0){
-		stopSampleFuncPointer ();
+		doStopSampling = true;
 	}
 	Serial.println(incommingBLE);
 }
@@ -78,6 +80,7 @@ void setupBLE() {
 	Serial.print("Forming a connection to ");
     Serial.println(masterAddress.toString().c_str());
     pClient  = BLEDevice::createClient();
+	BLEDevice::setPower(ESP_PWR_LVL_P9);
     Serial.println(" - Created client");
     pClient->setClientCallbacks(new MyClientCallback());
 }
@@ -88,10 +91,9 @@ bool connectToServer() {
     // former en trådløs BLE forbindelse til server.
 	bool didConnect = pClient->connect(masterAddress);
     if (!didConnect) {;  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
-		Serial.println("Couldn't connect to server!");
+		Serial.println(" - Couldn't connect to server!");
 		return false;
 	}
-	digitalWrite(2, HIGH);
     Serial.println(" - Connected to server");
     // Får en reference til den service vi er efter til den trådløse BLE server.
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
@@ -114,6 +116,7 @@ bool connectToServer() {
     if(pRemoteCharacteristic_ServerDataOut->canNotify()) {
 		Serial.println("Characteristic has notify property");
 		pRemoteCharacteristic_ServerDataOut->registerForNotify(notifyCallback);
+		//pRemoteCharacteristic_ServerDataOut->
     }
 	// Find serverDataIn characteristic.
     pRemoteCharacteristic_ServerDataIn = pRemoteService->getCharacteristic(serverDataIn_charUUID);
@@ -125,6 +128,16 @@ bool connectToServer() {
     }
     Serial.println(" - Found serverDataIn characteristic");
     connected = true;
+	digitalWrite(2, HIGH);
+
+	// 
+	String value = pRemoteCharacteristic_ServerDataOut->readValue().c_str();
+	if (value.indexOf("start") >= 0) {
+		Serial.println("Resuming sampling...");
+		doStopSampling = false;
+		startSampleFuncPointer();
+	}
+
     return true;
 }
 
